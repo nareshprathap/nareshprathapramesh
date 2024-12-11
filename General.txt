@@ -3,7 +3,7 @@
 dig +short myip.opendns.com @resolver1.opendns.com
 ----------------------------------------
 
-Public IP ranges:
+Public IP address ranges:
 1.0.0.0 - 9.255.255.255
 
 11.0.0.0 - 126.255.255.255
@@ -23,7 +23,7 @@ Public IP ranges:
 198.20.0.0 - 223.255.255.255
 -------------------------------------------
 
-Private IP address ranges are as follows:
+Private IP address ranges:
 Class A Private IP Range: 10.0.0.0 – 10.255.255.255 
 
 Class B Private IP Range: 172.16.0.0 – 172.31.255.255
