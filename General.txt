@@ -1,0 +1,3 @@
+[Use dig command for determining my public IP address Linux]
+
+dig +short myip.opendns.com @resolver1.opendns.com
