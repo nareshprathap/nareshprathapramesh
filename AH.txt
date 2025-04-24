@@ -1,4 +1,21 @@
+import jenkins.model.*
+import hudson.PluginWrapper
 
+def pluginManager = Jenkins.instance.pluginManager
+def plugins = pluginManager.plugins
+
+plugins.each { PluginWrapper plugin ->
+    println "Plugin: ${plugin.shortName} (${plugin.getVersion()})"
+    if (plugin.getDependencies()) {
+        println "  Required Dependencies:"
+        plugin.getDependencies().findAll { !it.optional }.each { dep ->
+            println "    - ${dep.shortName} (version: ${dep.version})"
+        }
+    } else {
+        println "  No dependencies."
+    }
+    println ""
+}
 
 
 
