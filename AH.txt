@@ -299,3 +299,202 @@ Summary Flow:
 [Upgrade plugins if needed] → [Test in staging]
           ↓
         [Upgrade Jenkins core in prod]
+
+
+
+
+
+OpenShift Deployment Strategies (Detailed Explanation)
+
+When you update an application in OpenShift (e.g., new version, config changes), how OpenShift replaces the old version with the new one is called a Deployment Strategy.
+
+The main deployment strategies are:
+
+    Recreate
+
+    Rolling
+
+    Blue-Green (manual in OpenShift)
+
+    Canary (manual or progressive in OpenShift)
+
+    Custom (user-defined scripts/hooks)
+
+Each has its use cases, pros/cons, and behaviors.
+1. 🔥 Recreate Strategy
+
+    What happens?
+    OpenShift completely shuts down the old version (all pods), then starts the new version.
+
+    Steps:
+
+        Scale old pods to 0.
+
+        Deploy new pods.
+
+    Use Cases:
+
+        Applications that can't handle two versions running together (stateful apps, DBs, caches).
+
+        Big changes to the database schema.
+
+        Memory-heavy apps where running both old and new together is too resource-consuming.
+
+    Pros:
+
+        Clean environment.
+
+        No version conflicts.
+
+    Cons:
+
+        Downtime during deployment (app is not available between old shutting down and new starting).
+
+    OpenShift Config Example:
+
+    strategy:
+      type: Recreate
+
+2. 🔄 Rolling Strategy (default)
+
+    What happens?
+    OpenShift gradually replaces old pods with new ones — one by one (or a few at a time).
+
+    Steps:
+
+        Spin up a few new pods.
+
+        Remove a few old pods.
+
+        Continue until all old pods are gone.
+
+    Use Cases:
+
+        Web apps, APIs, and services that must remain available during deployments.
+
+    Pros:
+
+        Zero downtime (ideally).
+
+        Can configure batch size (how many pods to update at a time).
+
+    Cons:
+
+        Both old and new versions may temporarily coexist — you need to ensure backward compatibility.
+
+    OpenShift Config Example:
+
+    strategy:
+      type: Rolling
+      rollingParams:
+        maxSurge: 25%   # How many extra pods to add
+        maxUnavailable: 25%  # How many pods can be unavailable during update
+
+    maxSurge and maxUnavailable can be numbers or percentages.
+
+3. 🧢 Blue-Green Deployment (Manual Setup)
+
+    What happens?
+    You deploy the new version side-by-side with the old version (in parallel), but don't switch traffic immediately.
+
+    Steps:
+
+        Deploy new version (in a separate deployment or environment).
+
+        Test it thoroughly.
+
+        Manually switch the service route to point to the new deployment.
+
+        If something breaks, quickly rollback by pointing the route back.
+
+    Use Cases:
+
+        Critical applications where downtime or bad releases are very costly.
+
+        Systems requiring zero-risk deployments.
+
+    Pros:
+
+        No impact on users until you’re ready.
+
+        Instant rollback (just re-route traffic).
+
+    Cons:
+
+        Consumes more resources (old + new run at the same time).
+
+        Needs extra automation or manual steps.
+
+    In OpenShift:
+
+        Typically done with two deployments and managing routes manually or via pipelines.
+
+4. 🐤 Canary Deployment (Progressive Rollout)
+
+    What happens?
+    OpenShift (or you manually) rolls out the new version to a small % of users first.
+    If it goes well, you gradually shift more traffic to the new version.
+
+    Steps:
+
+        Deploy new version alongside old one.
+
+        Split traffic (e.g., 5% to new, 95% to old).
+
+        Monitor.
+
+        Increase to 50-50, then 100% as confidence grows.
+
+    Use Cases:
+
+        Risky features or critical systems needing early validation without full exposure.
+
+    Pros:
+
+        Minimized risk.
+
+        Quick rollback (shift all traffic back).
+
+    Cons:
+
+        Needs traffic splitting (either manually, through OpenShift Routes, or external tools like Istio, Service Mesh).
+
+        Slightly complex setup.
+
+    In OpenShift:
+
+        You usually create two deployments.
+
+        Use routes or service mesh to split traffic.
+
+5. 🛠️ Custom Deployment Strategy
+
+    What happens?
+    You define your own deployment scripts and lifecycle hooks.
+
+    How:
+
+        Add custom pre, mid, or post-deployment logic.
+
+        Example: Database migrations, cache warming, sending notifications.
+
+    OpenShift Config Example:
+
+    strategy:
+      type: Custom
+      customParams:
+        image: my-custom-deployer-image
+        command:
+          - /bin/my-custom-deploy-script
+
+    Use Cases:
+
+        Very complex apps where standard strategies aren’t enough.
+
+🧠 Quick Comparison Table
+Strategy	Downtime	Risk	Resources Needed	Complexity	Best For
+Recreate	Yes	Medium	Low	Simple	State-sensitive apps
+Rolling	No	Medium	Medium	Moderate	Web services
+Blue-Green	No	Low	High	High	Critical apps
+Canary	No	Low	High	High	Experimental features
+Custom	Varies	Varies	Varies	Very High	Complex apps
