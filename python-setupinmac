@@ -1,0 +1,20 @@
+## Use Homebrew Python + virtual environments:
+
+brew install python
+
+## Add Homebrew to your PATH
+## Run one of these (based on your Mac):
+## Apple Silicon (M1/M2/M3)
+
+echo 'export PATH="/opt/homebrew/bin:$PATH"' >> ~/.zprofile
+
+# Reload
+source ~/.zprofile
+
+which python3
+
+# Create a Project venv
+python3 -m venv venv
+
+# Activate it
+source venv/bin/activate
