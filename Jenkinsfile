@@ -2,39 +2,26 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage('Get Global Build Number') {
             steps {
-                echo 'This is a test checkout stage'
-                // Normally you'd clone a repo here
-                // git url: 'REPO_URL', credentialsId: 'CREDENTIALS_ID'
+                script {
+                    def counterBuild = build job: 'global-build-counter',
+                                             wait: true
+                    def globalNumber = counterBuild.getDescription()
+
+                    // Fallback if needed
+                    globalNumber = counterBuild.number
+
+                    currentBuild.displayName = "#${globalNumber}"
+                    env.GLOBAL_BUILD_NUMBER = "${globalNumber}"
+                }
             }
         }
 
         stage('Build') {
             steps {
-                echo 'This is a test build stage'
-                // Normally you'd build your project here
+                echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
             }
-        }
-
-        stage('Test') {
-            steps {
-                echo 'This is a test stage'
-                // Normally you'd run tests here
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo 'This is a test deploy stage'
-                // Normally you'd deploy your app here
-            }
-        }
-    }
-
-    post {
-        always {
-            echo 'This is a test pipeline run'
         }
     }
 }
