@@ -2,25 +2,22 @@ pipeline {
     agent any
 
     stages {
-        stage('Get Global Build Number') {
+        stage('Generate Version') {
             steps {
                 script {
-                    def counterBuild = build job: 'global-build-counter',
-                                             wait: true
-                    def globalNumber = counterBuild.getDescription()
+                    def version = VersionNumber(
+                        versionNumberString: '${BUILDS_ALL_TIME}'
+                    )
 
-                    // Fallback if needed
-                    globalNumber = counterBuild.number
-
-                    currentBuild.displayName = "#${globalNumber}"
-                    env.GLOBAL_BUILD_NUMBER = "${globalNumber}"
+                    currentBuild.displayName = "#${version}"
+                    env.GLOBAL_BUILD_NUMBER = version
                 }
             }
         }
 
         stage('Build') {
             steps {
-                echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+                echo "Build Version: ${env.GLOBAL_BUILD_NUMBER}"
             }
         }
     }
