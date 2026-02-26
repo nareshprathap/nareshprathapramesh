@@ -5,50 +5,71 @@ pipeline {
         stage('Get Global Build Number') {
             steps {
                 script {
-                    // Trigger the counter job
-                    def counterBuild = build job: 'global-build-counter', wait: true, propagate: true
+                    // Run the shell script with flock to safely increment
+                    env.GLOBAL_BUILD_NUMBER = sh(
+                        script: '''
+                            COUNTER_FILE="$JENKINS_HOME/global_build_number.txt"
 
-                    // Use its build number
-                    env.GLOBAL_BUILD_NUMBER = counterBuild.getNumber().toString()
+                            # Ensure directory exists
+                            mkdir -p "$(dirname "$COUNTER_FILE")"
 
-                    // Show it in Jenkins UI
+                            # Use file lock to avoid parallel race conditions
+                            (
+                                flock -n 200 || { echo "Another build is running. Waiting..."; flock 200; }
+
+                                if [ ! -f "$COUNTER_FILE" ]; then
+                                    echo 1 > "$COUNTER_FILE"
+                                fi
+
+                                BUILD_NUM=$(cat "$COUNTER_FILE")
+                                NEXT_BUILD=$((BUILD_NUM + 1))
+                                echo $NEXT_BUILD > "$COUNTER_FILE"
+
+                                echo $NEXT_BUILD
+                            ) 200> "$COUNTER_FILE.lock"
+                        ''',
+                        returnStdout: true
+                    ).trim()
+
+                    // Display the global build number in Jenkins UI
                     currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
+                    echo "Assigned Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
                 }
             }
         }
 
         stage('Checkout') {
             steps {
-                echo "Checking out the repository..."
-                // Normally: git url: 'https://github.com/username/repo.git', credentialsId: 'your-credentials'
+                echo "Checking out repository..."
+                // git url: 'https://github.com/username/repo.git', credentialsId: 'github-credentials'
             }
         }
 
         stage('Build') {
             steps {
-                echo "Building the project with Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-                // Example build command: sh 'mvn clean package'
+                echo "Building project with Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+                // sh 'mvn clean package'
             }
         }
 
         stage('Test') {
             steps {
                 echo "Running tests..."
-                // Example test command: sh 'mvn test'
+                // sh 'mvn test'
             }
         }
 
         stage('Deploy') {
             steps {
-                echo "Deploying the application..."
-                // Example deploy command: sh './deploy.sh'
+                echo "Deploying application..."
+                // sh './deploy.sh'
             }
         }
 
         stage('Cleanup') {
             steps {
                 echo "Cleaning up workspace..."
-                // Example cleanup: deleteDir()
+                // deleteDir()
             }
         }
     }
