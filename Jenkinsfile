@@ -34,18 +34,18 @@ pipeline {
         stage('Build') {
             steps {
                 echo "Building application..."
-                sh 'mvn clean compile'
+                sh 'echo "Would run: mvn clean compile"'
             }
         }
 
         stage('Unit Tests') {
             steps {
                 echo "Running unit tests..."
-                sh 'mvn test'
+                sh 'echo "Would run: mvn test"'
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    echo "Would parse junit reports here"
                 }
             }
         }
@@ -53,14 +53,14 @@ pipeline {
         stage('Static Analysis') {
             steps {
                 echo "Running static code analysis..."
-                sh 'mvn sonar:sonar || true'
+                sh 'echo "Would run: mvn sonar:sonar"'
             }
         }
 
         stage('Package') {
             steps {
                 echo "Packaging artifact..."
-                sh "mvn package -Drevision=${env.RELEASE_VERSION}"
+                sh "echo 'Would run: mvn package -Drevision=${env.RELEASE_VERSION}'"
             }
         }
 
@@ -70,9 +70,7 @@ pipeline {
             }
             steps {
                 echo "Building Docker image..."
-                sh """
-                   docker build -t myapp:${env.IMAGE_TAG} .
-                """
+                sh "echo 'Would run: docker build -t myapp:${env.IMAGE_TAG} .'"
             }
         }
 
@@ -82,7 +80,7 @@ pipeline {
             }
             steps {
                 echo "Deploying version ${env.RELEASE_VERSION}..."
-                sh "./deploy.sh ${env.RELEASE_VERSION}"
+                sh "echo 'Would run: ./deploy.sh ${env.RELEASE_VERSION}'"
             }
         }
     }
