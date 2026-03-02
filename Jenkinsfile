@@ -2,41 +2,30 @@ pipeline {
     agent any
 
     stages {
-        stage('Get Global Build Number') {
-            steps {
-                script {
-                    // Run the shell script with flock to safely increment
-                    env.GLOBAL_BUILD_NUMBER = sh(
-                        script: '''
-                            COUNTER_FILE="$JENKINS_HOME/global_build_number.txt"
+    stage('Generate Global Build Number') {
+      steps {
+        script {
+          lock(resource: 'global-build-number-lock') {
 
-                            # Ensure directory exists
-                            mkdir -p "$(dirname "$COUNTER_FILE")"
+            def counterFile = "/var/jenkins_home/global-build-number.txt"
+            def buildNumber
 
-                            # Use file lock to avoid parallel race conditions
-                            (
-                                flock -n 200 || { echo "Another build is running. Waiting..."; flock 200; }
-
-                                if [ ! -f "$COUNTER_FILE" ]; then
-                                    echo 1 > "$COUNTER_FILE"
-                                fi
-
-                                BUILD_NUM=$(cat "$COUNTER_FILE")
-                                NEXT_BUILD=$((BUILD_NUM + 1))
-                                echo $NEXT_BUILD > "$COUNTER_FILE"
-
-                                echo $NEXT_BUILD
-                            ) 200> "$COUNTER_FILE.lock"
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    // Display the global build number in Jenkins UI
-                    currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
-                    echo "Assigned Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-                }
+            if (fileExists(counterFile)) {
+              buildNumber = readFile(counterFile).trim().toInteger()
+            } else {
+              buildNumber = 1
             }
+
+            env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
+
+            writeFile file: counterFile, text: (buildNumber + 1).toString()
+
+            echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+          }
         }
+      }
+    }
+  }     
 
         stage('Checkout') {
             steps {
