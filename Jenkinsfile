@@ -7,7 +7,7 @@ pipeline {
         script {
           lock(resource: 'global-build-number-lock') {
 
-            def counterFile = "/var/jenkins_home/global-build-number.txt"
+            def counterFile = "${JENKINS_HOME}/global-build-number.txt"
             def buildNumber
 
             if (fileExists(counterFile)) {
