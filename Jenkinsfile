@@ -6,20 +6,25 @@ pipeline {
         stage('Generate Global Build Number') {
             steps {
                 script {
+
                     lock(resource: 'global-build-number-lock') {
 
-                        def counterFile = "${JENKINS_HOME}/global-build-number.txt"
-                        def buildNumber
+                        // Get real Jenkins home directory (controller)
+                        def jenkinsHome = jenkins.model.Jenkins.instance.rootDir.getAbsolutePath()
+                        def counterFile = new File(jenkinsHome, "global-build-number.txt")
 
-                        if (fileExists(counterFile)) {
-                            buildNumber = readFile(counterFile).trim().toInteger()
-                        } else {
-                            buildNumber = 1
+                        if (!counterFile.exists()) {
+                            counterFile.write("1")
                         }
+
+                        def buildNumber = counterFile.text.trim().toInteger()
+
+                        // Increment and persist
+                        counterFile.write((buildNumber + 1).toString())
 
                         env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
 
-                        writeFile file: counterFile, text: (buildNumber + 1).toString()
+                        currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
 
                         echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
                     }
@@ -27,51 +32,10 @@ pipeline {
             }
         }
 
-        stage('Checkout') {
-            steps {
-                echo "Checking out repository..."
-                // git url: 'https://github.com/username/repo.git', credentialsId: 'github-credentials'
-            }
-        }
-
         stage('Build') {
             steps {
-                echo "Building project with Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-                // sh 'mvn clean package'
+                echo "Building with Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
             }
-        }
-
-        stage('Test') {
-            steps {
-                echo "Running tests..."
-                // sh 'mvn test'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo "Deploying application..."
-                // sh './deploy.sh'
-            }
-        }
-
-        stage('Cleanup') {
-            steps {
-                echo "Cleaning up workspace..."
-                // deleteDir()
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "Pipeline completed successfully! Build #${env.GLOBAL_BUILD_NUMBER}"
-        }
-        failure {
-            echo "Pipeline failed! Build #${env.GLOBAL_BUILD_NUMBER}"
-        }
-        always {
-            echo "This always runs regardless of success or failure."
         }
     }
 }
