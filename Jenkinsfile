@@ -6,44 +6,53 @@ pipeline {
         stage('Generate Global Build Number') {
             steps {
                 script {
-                    def counterBuild = build job: 'global-build-counter',
-                                              wait: true,
-                                              propagate: true
+                    lock('global-build-number-lock') {  // ensures only one build increments at a time
 
-                    env.GLOBAL_BUILD_NUMBER = counterBuild.displayName.replace('#','')
-                    env.RELEASE_VERSION = "1.0.${env.GLOBAL_BUILD_NUMBER}"
+                        def counterFile = "${JENKINS_HOME}/global-build-number.txt"
 
-                    // Branch-aware Docker image tag
-                    def branchTag = env.BRANCH_NAME.replaceAll('/', '-')
-                    env.IMAGE_TAG = "${branchTag}-${env.GLOBAL_BUILD_NUMBER}"
+                        // Initialize counter if missing
+                        if (!fileExists(counterFile)) {
+                            writeFile file: counterFile, text: "1"
+                            echo "Counter file created with initial value 1"
+                        }
 
-                    currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
-                    currentBuild.description = "Branch: ${env.BRANCH_NAME}"
+                        // Read current number
+                        def buildNumber = readFile(counterFile).trim().toInteger()
 
-                    echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-                    echo "Release Version: ${env.RELEASE_VERSION}"
-                    echo "Docker Image Tag: ${env.IMAGE_TAG}"
+                        // Increment for next build
+                        def nextNumber = buildNumber + 1
+                        writeFile file: counterFile, text: nextNumber.toString()
+
+                        // Set environment variables
+                        env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
+                        env.RELEASE_VERSION = "1.0.${env.GLOBAL_BUILD_NUMBER}"
+                        env.IMAGE_TAG = "${env.BRANCH_NAME.replaceAll('/', '-')}-${env.GLOBAL_BUILD_NUMBER}"
+
+                        currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
+                        currentBuild.description = "Branch: ${env.BRANCH_NAME}"
+
+                        echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+                        echo "Release Version: ${env.RELEASE_VERSION}"
+                        echo "Docker Image Tag: ${env.IMAGE_TAG}"
+                    }
                 }
             }
         }
 
         stage('Checkout') {
             steps {
-                echo "Checking out source code..."
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo "Building application..."
                 sh 'echo "Would run: mvn clean compile"'
             }
         }
 
         stage('Unit Tests') {
             steps {
-                echo "Running unit tests..."
                 sh 'echo "Would run: mvn test"'
             }
             post {
@@ -55,34 +64,26 @@ pipeline {
 
         stage('Static Analysis') {
             steps {
-                echo "Running static code analysis..."
                 sh 'echo "Would run: mvn sonar:sonar"'
             }
         }
 
         stage('Package') {
             steps {
-                echo "Packaging artifact..."
                 sh "echo 'Would run: mvn package -Drevision=${env.RELEASE_VERSION}'"
             }
         }
 
         stage('Build Docker Image') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                echo "Building Docker image..."
                 sh "echo 'Would run: docker build -t myapp:${env.IMAGE_TAG} .'"
             }
         }
 
         stage('Deploy') {
-            when {
-                branch 'main'
-            }
+            when { branch 'main' }
             steps {
-                echo "Deploying version ${env.RELEASE_VERSION}..."
                 sh "echo 'Would run: ./deploy.sh ${env.RELEASE_VERSION}'"
             }
         }
