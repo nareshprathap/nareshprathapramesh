@@ -2,30 +2,30 @@ pipeline {
     agent any
 
     stages {
-    stage('Generate Global Build Number') {
-      steps {
-        script {
-          lock(resource: 'global-build-number-lock') {
 
-            def counterFile = "${JENKINS_HOME}/global-build-number.txt"
-            def buildNumber
+        stage('Generate Global Build Number') {
+            steps {
+                script {
+                    lock(resource: 'global-build-number-lock') {
 
-            if (fileExists(counterFile)) {
-              buildNumber = readFile(counterFile).trim().toInteger()
-            } else {
-              buildNumber = 1
+                        def counterFile = "${JENKINS_HOME}/global-build-number.txt"
+                        def buildNumber
+
+                        if (fileExists(counterFile)) {
+                            buildNumber = readFile(counterFile).trim().toInteger()
+                        } else {
+                            buildNumber = 1
+                        }
+
+                        env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
+
+                        writeFile file: counterFile, text: (buildNumber + 1).toString()
+
+                        echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+                    }
+                }
             }
-
-            env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
-
-            writeFile file: counterFile, text: (buildNumber + 1).toString()
-
-            echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-          }
         }
-      }
-    }
-  }     
 
         stage('Checkout') {
             steps {
