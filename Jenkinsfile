@@ -3,37 +3,38 @@ pipeline {
 
     stages {
 
-        stage('Generate Global Build Number') {
+        stage('Generate Repo Global Build Number') {
             steps {
                 script {
-                    lock('global-build-number-lock') {  // ensures only one build increments at a time
+                    // 1️⃣ Identify repo name dynamically (from Jenkins job)
+                    def repoName = "${env.JOB_NAME.split('/')[0]}" // e.g., "myapp"
 
-                        def counterFile = "${JENKINS_HOME}/global-build-number.txt"
+                    // 2️⃣ Counter file for this repo
+                    def counterFile = "${JENKINS_HOME}/global-build-number-${repoName}.txt"
 
-                        // Initialize counter if missing
+                    // 3️⃣ Lock to prevent concurrent increments for this repo
+                    lock("global-build-number-${repoName}-lock") {
+
+                        // 4️⃣ Initialize counter if it doesn't exist
                         if (!fileExists(counterFile)) {
                             writeFile file: counterFile, text: "1"
-                            echo "Counter file created with initial value 1"
+                            echo "Counter file created for ${repoName} with initial value 1"
                         }
 
-                        // Read current number
+                        // 5️⃣ Read current number
                         def buildNumber = readFile(counterFile).trim().toInteger()
 
-                        // Increment for next build
-                        def nextNumber = buildNumber + 1
-                        writeFile file: counterFile, text: nextNumber.toString()
+                        // 6️⃣ Increment and save for next build
+                        writeFile file: counterFile, text: (buildNumber + 1).toString()
 
-                        // Set environment variables
+                        // 7️⃣ Set environment variables for build
                         env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
                         env.RELEASE_VERSION = "1.0.${env.GLOBAL_BUILD_NUMBER}"
                         env.IMAGE_TAG = "${env.BRANCH_NAME.replaceAll('/', '-')}-${env.GLOBAL_BUILD_NUMBER}"
 
+                        // 8️⃣ Update Jenkins display name
                         currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
-                        currentBuild.description = "Branch: ${env.BRANCH_NAME}"
-
-                        echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
-                        echo "Release Version: ${env.RELEASE_VERSION}"
-                        echo "Docker Image Tag: ${env.IMAGE_TAG}"
+                        echo "Repo: ${repoName}, Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
                     }
                 }
             }
@@ -47,54 +48,23 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'echo "Would run: mvn clean compile"'
-            }
-        }
-
-        stage('Unit Tests') {
-            steps {
-                sh 'echo "Would run: mvn test"'
-            }
-            post {
-                always {
-                    echo "Would parse junit reports here"
-                }
-            }
-        }
-
-        stage('Static Analysis') {
-            steps {
-                sh 'echo "Would run: mvn sonar:sonar"'
-            }
-        }
-
-        stage('Package') {
-            steps {
-                sh "echo 'Would run: mvn package -Drevision=${env.RELEASE_VERSION}'"
-            }
-        }
-
-        stage('Build Docker Image') {
-            when { branch 'main' }
-            steps {
-                sh "echo 'Would run: docker build -t myapp:${env.IMAGE_TAG} .'"
+                sh 'echo "Would run build here"'
             }
         }
 
         stage('Deploy') {
-            when { branch 'main' }
             steps {
-                sh "echo 'Would run: ./deploy.sh ${env.RELEASE_VERSION}'"
+                sh "echo 'Would deploy using RELEASE_VERSION=${env.RELEASE_VERSION}'"
             }
         }
     }
 
     post {
         success {
-            echo "Build ${env.GLOBAL_BUILD_NUMBER} (${env.BRANCH_NAME}) completed successfully!"
+            echo "Build ${env.GLOBAL_BUILD_NUMBER} for ${env.BRANCH_NAME} completed successfully."
         }
         failure {
-            echo "Build ${env.GLOBAL_BUILD_NUMBER} (${env.BRANCH_NAME}) failed!"
+            echo "Build ${env.GLOBAL_BUILD_NUMBER} for ${env.BRANCH_NAME} failed!"
         }
         always {
             cleanWs()
