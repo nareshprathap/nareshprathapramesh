@@ -9,24 +9,26 @@ pipeline {
 
                     lock(resource: 'global-build-number-lock') {
 
-                        // Get real Jenkins home directory (controller)
-                        def jenkinsHome = jenkins.model.Jenkins.instance.rootDir.getAbsolutePath()
-                        def counterFile = new File(jenkinsHome, "global-build-number.txt")
+                        // Use a fixed shared directory
+                        ws("/var/lib/jenkins/global-counter") {
 
-                        if (!counterFile.exists()) {
-                            counterFile.write("1")
+                            def counterFile = "global-build-number.txt"
+                            def buildNumber
+
+                            if (fileExists(counterFile)) {
+                                buildNumber = readFile(counterFile).trim().toInteger()
+                            } else {
+                                buildNumber = 1
+                            }
+
+                            writeFile file: counterFile,
+                                      text: (buildNumber + 1).toString()
+
+                            env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
+                            currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
+
+                            echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
                         }
-
-                        def buildNumber = counterFile.text.trim().toInteger()
-
-                        // Increment and persist
-                        counterFile.write((buildNumber + 1).toString())
-
-                        env.GLOBAL_BUILD_NUMBER = buildNumber.toString()
-
-                        currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
-
-                        echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
                     }
                 }
             }
