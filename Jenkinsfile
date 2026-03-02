@@ -10,16 +10,19 @@ pipeline {
                                               wait: true,
                                               propagate: true
 
-                    env.GLOBAL_BUILD_NUMBER =
-                        counterBuild.displayName.replace('#','')
-
-                    env.IMAGE_TAG = env.GLOBAL_BUILD_NUMBER
+                    env.GLOBAL_BUILD_NUMBER = counterBuild.displayName.replace('#','')
                     env.RELEASE_VERSION = "1.0.${env.GLOBAL_BUILD_NUMBER}"
 
-                    currentBuild.displayName =
-                        "#${env.GLOBAL_BUILD_NUMBER}"
+                    // Branch-aware Docker image tag
+                    def branchTag = env.BRANCH_NAME.replaceAll('/', '-')
+                    env.IMAGE_TAG = "${branchTag}-${env.GLOBAL_BUILD_NUMBER}"
+
+                    currentBuild.displayName = "#${env.GLOBAL_BUILD_NUMBER}"
+                    currentBuild.description = "Branch: ${env.BRANCH_NAME}"
 
                     echo "Global Build Number: ${env.GLOBAL_BUILD_NUMBER}"
+                    echo "Release Version: ${env.RELEASE_VERSION}"
+                    echo "Docker Image Tag: ${env.IMAGE_TAG}"
                 }
             }
         }
@@ -87,10 +90,10 @@ pipeline {
 
     post {
         success {
-            echo "Build ${env.GLOBAL_BUILD_NUMBER} completed successfully!"
+            echo "Build ${env.GLOBAL_BUILD_NUMBER} (${env.BRANCH_NAME}) completed successfully!"
         }
         failure {
-            echo "Build ${env.GLOBAL_BUILD_NUMBER} failed!"
+            echo "Build ${env.GLOBAL_BUILD_NUMBER} (${env.BRANCH_NAME}) failed!"
         }
         always {
             cleanWs()
